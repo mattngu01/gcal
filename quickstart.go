@@ -18,7 +18,7 @@ import (
 	"google.golang.org/api/option"
 )
 
-var docStyle = lipgloss.NewStyle().Margin(1, 2)
+/* Google Calendar API */
 
 // Retrieve a token, saves the token, then returns the generated client.
 func getClient(config *oauth2.Config) *http.Client {
@@ -96,6 +96,10 @@ func authorize() *calendar.Service {
 
 	return srv
 }
+
+/* BubbleTea Things */
+
+var docStyle = lipgloss.NewStyle().Margin(1, 2)
 
 type model struct {
 	list list.Model
