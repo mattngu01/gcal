@@ -9,12 +9,16 @@ import (
 	"os"
 	"time"
 
+	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/calendar/v3"
 	"google.golang.org/api/option"
 )
+
+var docStyle = lipgloss.NewStyle().Margin(1, 2)
 
 // Retrieve a token, saves the token, then returns the generated client.
 func getClient(config *oauth2.Config) *http.Client {
@@ -93,17 +97,35 @@ func authorize() *calendar.Service {
 	return srv
 }
 
-func main() {
-	p := tea.NewProgram(initialModel())
-	if _, err := p.Run(); err != nil {
-		fmt.Printf("Error: %v", err)
-		os.Exit(1)
-	}
+type model struct {
+	list list.Model
 }
 
-type model struct {
-	events []*calendar.Event
-	cursor int
+// https://stackoverflow.com/questions/28800672/how-to-add-new-methods-to-an-existing-type-in-go
+// conflicting Description
+type EventWrapper struct {
+	*calendar.Event
+}
+
+// implement list.Item interface
+func (e EventWrapper) FilterValue() string {
+	return e.Event.Summary
+}
+
+func (e EventWrapper) Title() string {
+	return e.Event.Summary
+}
+
+func (e EventWrapper) Description() string {
+	date := ""
+
+	if e.Start.DateTime != "" {
+		date = e.Event.Start.DateTime + " - " + e.Event.End.DateTime
+	} else {
+		date = e.Event.Start.Date + " - " + e.Event.End.Date
+	}
+
+	return date
 }
 
 func initialModel() model {
@@ -115,9 +137,14 @@ func initialModel() model {
 		log.Fatalf("Unable to retrieve next ten of the user's events: %v", err)
 	}
 
-	return model{
-		events: events.Items,
+	m := model{list: list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0)}
+	m.list.Title = "Events"
+
+	for _, event := range events.Items {
+		m.list.InsertItem(len(events.Items), EventWrapper{Event: event})
 	}
+
+	return m
 }
 
 func (m model) Init() tea.Cmd {
@@ -131,40 +158,25 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+c", "q":
 			return m, tea.Quit
 
-		case "up", "k":
-			if m.cursor > 0 {
-				m.cursor--
-			}
-
-		case "down", "j":
-			if m.cursor < len(m.events)-1 {
-				m.cursor++
-			}
 		}
-
+	case tea.WindowSizeMsg:
+		h, v := docStyle.GetFrameSize()
+		m.list.SetSize(msg.Width-h, msg.Height-v)
 	}
 
-	return m, nil
+	var cmd tea.Cmd
+	m.list, cmd = m.list.Update(msg)
+	return m, cmd
 }
 
 func (m model) View() string {
-	s := "Your events:\n\n"
+	return docStyle.Render(m.list.View())
+}
 
-	if len(m.events) == 0 {
-		s += "No upcoming events"
+func main() {
+	p := tea.NewProgram(initialModel(), tea.WithAltScreen())
+	if _, err := p.Run(); err != nil {
+		fmt.Printf("Error: %v", err)
+		os.Exit(1)
 	}
-
-	for i, event := range m.events {
-		cursor := " "
-
-		if m.cursor == i {
-			cursor = ">"
-		}
-
-		s += fmt.Sprintf("%s %s\n", cursor, event.Summary)
-	}
-
-	s += "\nPress q or Ctrl+c to quit.\n"
-
-	return s
 }
