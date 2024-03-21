@@ -9,6 +9,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -141,7 +142,8 @@ func initialModel() model {
 		log.Fatalf("Unable to retrieve next ten of the user's events: %v", err)
 	}
 
-	m := model{list: list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0)}
+	delegate := extraItemDelegate(newDelegateKeyMap())
+	m := model{list: list.New([]list.Item{}, delegate, 0, 0)}
 	m.list.Title = "Events"
 
 	for _, event := range events.Items {
@@ -182,5 +184,44 @@ func main() {
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Error: %v", err)
 		os.Exit(1)
+	}
+}
+
+/* Extra List Behavior */
+
+type delegateKeyMap struct {
+	choose key.Binding
+	remove key.Binding
+}
+
+func extraItemDelegate(keys *delegateKeyMap) list.DefaultDelegate {
+	delegate := list.NewDefaultDelegate()
+
+	delegate.UpdateFunc = func(msg tea.Msg, m *list.Model) tea.Cmd {
+		var event EventWrapper
+
+		if i, ok := m.SelectedItem().(EventWrapper); ok {
+			event = i
+		} else {
+			return nil
+		}
+
+		switch msg := msg.(type) {
+		case tea.KeyMsg:
+			switch {
+			case key.Matches(msg, keys.choose):
+				return m.NewStatusMessage("You chose " + event.Summary)
+			}
+		}
+
+		return nil
+	}
+
+	return delegate
+}
+
+func newDelegateKeyMap() *delegateKeyMap {
+	return &delegateKeyMap{
+		choose: key.NewBinding(key.WithKeys("enter")),
 	}
 }
