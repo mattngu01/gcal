@@ -106,12 +106,37 @@ type model struct {
 	list list.Model
 	// not sure if better to have it as list.Item instead
 	selected EventWrapper
+	keys     *mainKeyMap
+}
+
+type mainKeyMap struct {
+	chooseItem key.Binding
+}
+
+func newKeyMap() *mainKeyMap {
+	return &mainKeyMap{
+		chooseItem: key.NewBinding(
+			key.WithKeys("enter"),
+		),
+	}
 }
 
 // https://stackoverflow.com/questions/28800672/how-to-add-new-methods-to-an-existing-type-in-go
 // conflicting Description
 type EventWrapper struct {
 	*calendar.Event
+}
+
+func (e EventWrapper) Date() string {
+	date := ""
+
+	if e.Start.DateTime != "" {
+		date = e.Start.DateTime + " - " + e.End.DateTime
+	} else {
+		date = e.Start.Date + " - " + e.End.Date
+	}
+
+	return date
 }
 
 // implement list.Item interface
@@ -124,15 +149,7 @@ func (e EventWrapper) Title() string {
 }
 
 func (e EventWrapper) Description() string {
-	date := ""
-
-	if e.Start.DateTime != "" {
-		date = e.Event.Start.DateTime + " - " + e.Event.End.DateTime
-	} else {
-		date = e.Event.Start.Date + " - " + e.Event.End.Date
-	}
-
-	return date
+	return e.Date()
 }
 
 func initialModel() model {
@@ -144,8 +161,7 @@ func initialModel() model {
 		log.Fatalf("Unable to retrieve next ten of the user's events: %v", err)
 	}
 
-	delegate := extraItemDelegate(newDelegateKeyMap())
-	m := model{list: list.New([]list.Item{}, delegate, 0, 0)}
+	m := model{list: list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0), keys: newKeyMap()}
 	m.list.Title = "Events"
 
 	for _, event := range events.Items {
@@ -167,6 +183,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 
 		}
+
+		switch {
+		case key.Matches(msg, m.keys.chooseItem):
+			event := m.list.SelectedItem().(EventWrapper)
+			m.selected = event
+			return m, m.list.NewStatusMessage("You chose " + event.Summary)
+		}
+
 	case tea.WindowSizeMsg:
 		h, v := docStyle.GetFrameSize()
 		m.list.SetSize(msg.Width-h, msg.Height-v)
@@ -178,7 +202,25 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
-	return docStyle.Render(m.list.View())
+	if m.selected.Event != nil {
+		return docStyle.Render(detailedInfoView(m))
+	} else {
+		return docStyle.Render(m.list.View())
+	}
+}
+
+func detailedInfoView(m model) string {
+	eventWrapper := m.selected
+
+	msg := eventWrapper.Summary + "\n" + eventWrapper.Date() + "\n"
+
+	if eventWrapper.Location != "" {
+		msg += "Location: " + eventWrapper.Location + "\n"
+	}
+
+	msg += "\n\n" + eventWrapper.Event.Description
+
+	return msg
 }
 
 func main() {
@@ -186,51 +228,5 @@ func main() {
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Error: %v", err)
 		os.Exit(1)
-	}
-}
-
-/* Extra List Behavior */
-
-type delegateKeyMap struct {
-	choose key.Binding
-	remove key.Binding
-}
-
-func extraItemDelegate(keys *delegateKeyMap) list.DefaultDelegate {
-	delegate := list.NewDefaultDelegate()
-
-	/*
-		TODO: this behavior needs to be moved to the application Update func,
-		not in the list item update function.
-
-		Here, we don't have access to the application model / application state
-		and thus cannot display extra details of the selected event.
-	*/
-	delegate.UpdateFunc = func(msg tea.Msg, m *list.Model) tea.Cmd {
-		var event EventWrapper
-
-		if i, ok := m.SelectedItem().(EventWrapper); ok {
-			event = i
-		} else {
-			return nil
-		}
-
-		switch msg := msg.(type) {
-		case tea.KeyMsg:
-			switch {
-			case key.Matches(msg, keys.choose):
-				return m.NewStatusMessage("You chose " + event.Summary)
-			}
-		}
-
-		return nil
-	}
-
-	return delegate
-}
-
-func newDelegateKeyMap() *delegateKeyMap {
-	return &delegateKeyMap{
-		choose: key.NewBinding(key.WithKeys("enter")),
 	}
 }
