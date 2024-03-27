@@ -104,6 +104,8 @@ var docStyle = lipgloss.NewStyle().Margin(1, 2)
 
 type model struct {
 	list list.Model
+	// not sure if better to have it as list.Item instead
+	selected EventWrapper
 }
 
 // https://stackoverflow.com/questions/28800672/how-to-add-new-methods-to-an-existing-type-in-go
@@ -197,6 +199,13 @@ type delegateKeyMap struct {
 func extraItemDelegate(keys *delegateKeyMap) list.DefaultDelegate {
 	delegate := list.NewDefaultDelegate()
 
+	/*
+		TODO: this behavior needs to be moved to the application Update func,
+		not in the list item update function.
+
+		Here, we don't have access to the application model / application state
+		and thus cannot display extra details of the selected event.
+	*/
 	delegate.UpdateFunc = func(msg tea.Msg, m *list.Model) tea.Cmd {
 		var event EventWrapper
 
