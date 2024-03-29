@@ -7,7 +7,9 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/calendar/v3"
@@ -91,4 +93,18 @@ func authorize() *calendar.Service {
 	}
 
 	return srv
+}
+
+type getEventsMsg *calendar.Events
+
+func getEvents() tea.Msg {
+	srv := authorize()
+	t := time.Now().Format(time.RFC3339)
+	events, err := srv.Events.List("primary").ShowDeleted(false).
+		SingleEvents(true).TimeMin(t).MaxResults(10).OrderBy("startTime").Do()
+	if err != nil {
+		log.Fatalf("Unable to retrieve next ten of the user's events: %v", err)
+	}
+
+	return getEventsMsg(events)
 }

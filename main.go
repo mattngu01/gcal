@@ -2,9 +2,7 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
-	"time"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
@@ -72,32 +70,29 @@ func (e EventWrapper) Description() string {
 	return e.Date()
 }
 
-func initialModel() model {
-	srv := authorize()
-	t := time.Now().Format(time.RFC3339)
-	events, err := srv.Events.List("primary").ShowDeleted(false).
-		SingleEvents(true).TimeMin(t).MaxResults(10).OrderBy("startTime").Do()
-	if err != nil {
-		log.Fatalf("Unable to retrieve next ten of the user's events: %v", err)
-	}
-
+func emptyModel() model {
 	keys := newKeyMap()
-	m := model{list: list.New([]list.Item{}, newItemDelegate(keys), 0, 0), keys: keys}
-	m.list.Title = "Events"
+	list := list.New([]list.Item{}, newItemDelegate(keys), 0, 0)
+	list.Title = "Google Calendar"
+	return model{list: list, keys: keys}
+}
 
+func (m *model) updateModel(events *calendar.Events) {
 	for _, event := range events.Items {
 		m.list.InsertItem(len(events.Items), EventWrapper{Event: event})
 	}
-
-	return m
 }
 
 func (m model) Init() tea.Cmd {
-	return nil
+	return getEvents
 }
+
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case getEventsMsg:
+		m.updateModel(msg)
+
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "esc":
@@ -128,7 +123,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
-	if m.selected.Event != nil {
+	if len(m.list.Items()) == 0 {
+		return docStyle.Render("Obtaining user events...")
+	} else if m.selected.Event != nil {
 		return docStyle.Render(detailedInfoView(m))
 	} else {
 		return docStyle.Render(m.list.View())
@@ -150,7 +147,7 @@ func detailedInfoView(m model) string {
 }
 
 func main() {
-	p := tea.NewProgram(initialModel(), tea.WithAltScreen())
+	p := tea.NewProgram(emptyModel(), tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Error: %v", err)
 		os.Exit(1)
