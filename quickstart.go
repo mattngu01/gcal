@@ -179,9 +179,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
+		case "esc":
+			m.selected.Event = nil
+			return m, nil
+
 		case "ctrl+c", "q":
 			return m, tea.Quit
-
 		}
 
 		switch {
