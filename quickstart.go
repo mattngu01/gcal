@@ -121,6 +121,7 @@ func newKeyMap() *mainKeyMap {
 	return &mainKeyMap{
 		chooseItem: key.NewBinding(
 			key.WithKeys("enter"),
+			key.WithHelp("ENTER", "Details"),
 		),
 	}
 }
@@ -165,7 +166,8 @@ func initialModel() model {
 		log.Fatalf("Unable to retrieve next ten of the user's events: %v", err)
 	}
 
-	m := model{list: list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0), keys: newKeyMap()}
+	keys := newKeyMap()
+	m := model{list: list.New([]list.Item{}, newItemDelegate(keys), 0, 0), keys: keys}
 	m.list.Title = "Events"
 
 	for _, event := range events.Items {
@@ -237,5 +239,39 @@ func main() {
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Error: %v", err)
 		os.Exit(1)
+	}
+}
+
+// Combines the main app key bindings to show help on list view
+func newItemDelegate(keys *mainKeyMap) list.DefaultDelegate {
+	d := list.NewDefaultDelegate()
+	
+	help := []key.Binding{keys.chooseItem}
+	
+	d.ShortHelpFunc = func() []key.Binding {
+		return help
+	}
+
+	d.FullHelpFunc = func() [][]key.Binding {
+		return [][]key.Binding{help}
+	}
+
+	return d
+}
+
+// satiesfies help.KeyMap interface
+func (m mainKeyMap) ShortHelp() []key.Binding {
+	return []key.Binding{
+		m.chooseItem,
+	}
+}
+
+// satiesfies help.KeyMap interface
+// each row in the first array corresponds with the columns showed in help
+func (m mainKeyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		{
+			m.chooseItem,
+		},
 	}
 }
