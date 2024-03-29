@@ -13,6 +13,7 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/reflow/wordwrap"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/calendar/v3"
@@ -100,6 +101,8 @@ func authorize() *calendar.Service {
 
 /* BubbleTea Things */
 
+var MAX_STR_LENGTH int = 150
+
 var docStyle = lipgloss.NewStyle().Margin(1, 2)
 
 type model struct {
@@ -107,6 +110,7 @@ type model struct {
 	// not sure if better to have it as list.Item instead
 	selected EventWrapper
 	keys     *mainKeyMap
+	contentWidth int
 }
 
 type mainKeyMap struct {
@@ -195,8 +199,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case tea.WindowSizeMsg:
-		h, v := docStyle.GetFrameSize()
-		m.list.SetSize(msg.Width-h, msg.Height-v)
+		xMargin, yMargin := docStyle.GetFrameSize()
+
+		m.contentWidth = msg.Width-xMargin
+		m.list.SetSize(msg.Width-xMargin, msg.Height-yMargin)
 	}
 
 	var cmd tea.Cmd
@@ -223,7 +229,7 @@ func detailedInfoView(m model) string {
 
 	msg += "\n\n" + eventWrapper.Event.Description
 
-	return msg
+	return wordwrap.String(msg, min(m.contentWidth, MAX_STR_LENGTH))
 }
 
 func main() {
