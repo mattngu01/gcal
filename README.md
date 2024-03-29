@@ -11,3 +11,4 @@ Follow the [steps here](https://developers.google.com/calendar/api/quickstart/go
 - [ ] new event form
 - [ ] customize date output
 - [ ] prettier detailed view
+- [ ] improve token initialization flow
