@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/reflow/wordwrap"
 	"google.golang.org/api/calendar/v3"
@@ -24,10 +25,37 @@ type model struct {
 	selected EventWrapper
 	keys     *mainKeyMap
 	contentWidth int
+	eventForm *huh.Form
+	mode int
+}
+
+type eventFields struct {
+	summary string
+	description string
+	location string
+	start string // to be converted to time.Time per go-anytime
+	end string
+}
+
+var DATE_HELP string = "Accepts standard YYYY-MM-DD & other formats, or try a phrase: 'two days from now at 2pm'"
+
+func newEventForm() *huh.Form {
+	form := huh.NewForm(
+		huh.NewGroup(
+			huh.NewInput().Title("Summary / Title"),
+			huh.NewText().Title("Description"),
+			huh.NewInput().Title("Location"),
+			huh.NewInput().Title("Start date/time").Placeholder(DATE_HELP),
+			huh.NewInput().Title("End date/time").Placeholder(DATE_HELP),
+		),
+	)
+
+	return form
 }
 
 type mainKeyMap struct {
 	chooseItem key.Binding
+	newEvent key.Binding
 }
 
 func newKeyMap() *mainKeyMap {
@@ -35,6 +63,10 @@ func newKeyMap() *mainKeyMap {
 		chooseItem: key.NewBinding(
 			key.WithKeys("enter"),
 			key.WithHelp("ENTER", "Details"),
+		),
+		newEvent: key.NewBinding(
+			key.WithKeys("N", "n"),
+			key.WithHelp("N/n", "Create new event"),
 		),
 	}
 }
@@ -74,8 +106,14 @@ func emptyModel() model {
 	keys := newKeyMap()
 	list := list.New([]list.Item{}, newItemDelegate(keys), 0, 0)
 	list.Title = "Google Calendar"
-	return model{list: list, keys: keys}
+	return model{list: list, keys: keys, mode: LIST}
 }
+
+// viewing modes
+const (
+	LIST = iota
+	NEW_EVENT
+)
 
 func (m *model) updateModel(events *calendar.Events) {
 	for _, event := range events.Items {
@@ -87,39 +125,64 @@ func (m model) Init() tea.Cmd {
 	return getEvents
 }
 
+func formUpdate(m model, msg tea.Msg) (tea.Model, tea.Cmd) {
+	form, cmd := m.eventForm.Update(msg)
 
-func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case getEventsMsg:
-		m.updateModel(msg)
+	if f, ok := form.(*huh.Form); ok {
+        m.eventForm = f
+    }
 
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "esc":
-			m.selected.Event = nil
-			return m, nil
-
-		case "ctrl+c", "q":
-			return m, tea.Quit
-		}
-
-		switch {
-		case key.Matches(msg, m.keys.chooseItem):
-			event := m.list.SelectedItem().(EventWrapper)
-			m.selected = event
-			return m, m.list.NewStatusMessage("You chose " + event.Summary)
-		}
-
-	case tea.WindowSizeMsg:
-		xMargin, yMargin := docStyle.GetFrameSize()
-
-		m.contentWidth = msg.Width-xMargin
-		m.list.SetSize(msg.Width-xMargin, msg.Height-yMargin)
+	if m.eventForm.State == huh.StateCompleted || m.eventForm.State == huh.StateAborted {
+		m.mode = LIST
 	}
 
-	var cmd tea.Cmd
-	m.list, cmd = m.list.Update(msg)
-	return m, cmd
+    return m, cmd
+}
+
+func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if m.mode == LIST {
+		switch msg := msg.(type) {
+		case getEventsMsg:
+			m.updateModel(msg)
+
+		case tea.KeyMsg:
+			switch msg.String() {
+			case "esc":
+				m.selected.Event = nil
+				return m, nil
+
+			case "ctrl+c", "q":
+				return m, tea.Quit
+			}
+
+			switch {
+			case key.Matches(msg, m.keys.chooseItem):
+				event := m.list.SelectedItem().(EventWrapper)
+				m.selected = event
+				return m, m.list.NewStatusMessage("You chose " + event.Summary)
+			case key.Matches(msg, m.keys.newEvent):
+				m.mode = NEW_EVENT
+				m.eventForm = newEventForm()
+				return m, m.eventForm.Init()
+			}
+
+		case tea.WindowSizeMsg:
+			xMargin, yMargin := docStyle.GetFrameSize()
+
+			m.contentWidth = msg.Width-xMargin
+			m.list.SetSize(msg.Width-xMargin, msg.Height-yMargin)
+		}
+
+		var cmd tea.Cmd
+		m.list, cmd = m.list.Update(msg)
+
+		return m, cmd
+	} else if m.mode == NEW_EVENT {
+		// upon finishing event need to create command to create new event in API, change mode back to LIST, maybe update..?
+		return formUpdate(m, msg)
+	}
+
+	return m, nil
 }
 
 func (m model) View() string {
@@ -127,6 +190,8 @@ func (m model) View() string {
 		return docStyle.Render("Obtaining user events...")
 	} else if m.selected.Event != nil {
 		return docStyle.Render(detailedInfoView(m))
+	} else if m.mode == NEW_EVENT {
+		return docStyle.Render(m.eventForm.View())
 	} else {
 		return docStyle.Render(m.list.View())
 	}
@@ -158,7 +223,7 @@ func main() {
 func newItemDelegate(keys *mainKeyMap) list.DefaultDelegate {
 	d := list.NewDefaultDelegate()
 	
-	help := []key.Binding{keys.chooseItem}
+	help := []key.Binding{keys.chooseItem, keys.newEvent}
 	
 	d.ShortHelpFunc = func() []key.Binding {
 		return help
