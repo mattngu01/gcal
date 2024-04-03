@@ -10,6 +10,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/ijt/go-anytime"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/calendar/v3"
@@ -81,7 +82,7 @@ func authorize() *calendar.Service {
 	}
 
 	// If modifying these scopes, delete your previously saved token.json.
-	config, err := google.ConfigFromJSON(b, calendar.CalendarReadonlyScope)
+	config, err := google.ConfigFromJSON(b, calendar.CalendarEventsScope)
 	if err != nil {
 		log.Fatalf("Unable to parse client secret file to config: %v", err)
 	}
@@ -96,6 +97,7 @@ func authorize() *calendar.Service {
 }
 
 type getEventsMsg *calendar.Events
+type errMsg error
 
 func getEvents() tea.Msg {
 	srv := authorize()
@@ -107,4 +109,53 @@ func getEvents() tea.Msg {
 	}
 
 	return getEventsMsg(events)
+}
+
+func createEvent(e eventFields) tea.Cmd {
+	return func() tea.Msg {
+		// definitely better to create only one client and then hold onto it, but eh
+		srv := authorize()
+
+		start, err := convertStrToDateTime(e.start)
+
+		if err != nil {
+			return errMsg(err)
+		}
+
+		end, err := convertStrToDateTime(e.end)
+
+		if err != nil {
+			return errMsg(err)
+		}
+
+		event := &calendar.Event{
+			Summary: e.summary,
+			Location: e.location,
+			Description: e.description,
+			Start: &calendar.EventDateTime{
+				DateTime: start.Format(time.RFC3339),
+			},
+			End: &calendar.EventDateTime{
+				DateTime: end.Format(time.RFC3339),
+			},
+		}
+
+		_, err = srv.Events.Insert("primary", event).Do()
+
+		if err != nil {
+			return errMsg(err)
+		}
+
+		return getEvents()
+	}
+}
+
+func convertStrToDateTime(s string) (time.Time, error) {
+	v, err := anytime.Parse(s, time.Now(), anytime.DefaultToFuture)
+
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	return v, err
 }

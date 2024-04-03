@@ -27,6 +27,7 @@ type model struct {
 	contentWidth int
 	eventForm *huh.Form
 	mode int
+	err error
 }
 
 type eventFields struct {
@@ -42,11 +43,17 @@ var DATE_HELP string = "Accepts standard YYYY-MM-DD & other formats, or try a ph
 func newEventForm() *huh.Form {
 	form := huh.NewForm(
 		huh.NewGroup(
-			huh.NewInput().Title("Summary / Title"),
-			huh.NewText().Title("Description"),
-			huh.NewInput().Title("Location"),
-			huh.NewInput().Title("Start date/time").Placeholder(DATE_HELP),
-			huh.NewInput().Title("End date/time").Placeholder(DATE_HELP),
+			huh.NewInput().Title("Summary / Title").Key("summary"),
+			huh.NewText().Title("Description").Key("description"),
+			huh.NewInput().Title("Location").Key("location"),
+			huh.NewInput().Title("Start date/time").Key("start").Placeholder(DATE_HELP).Validate(func(str string) error {
+				_, err := convertStrToDateTime(str)
+				return err
+			}),
+			huh.NewInput().Title("End date/time").Key("end").Placeholder(DATE_HELP).Validate(func(str string) error {
+				_, err := convertStrToDateTime(str)
+				return err
+			}),
 		),
 	)
 
@@ -115,7 +122,9 @@ const (
 	NEW_EVENT
 )
 
-func (m *model) updateModel(events *calendar.Events) {
+func (m *model) updateModelEvents(events *calendar.Events) {
+	// on refresh, want to make sure we start on a clean slate
+	m.list.SetItems([]list.Item{})
 	for _, event := range events.Items {
 		m.list.InsertItem(len(events.Items), EventWrapper{Event: event})
 	}
@@ -132,7 +141,18 @@ func formUpdate(m model, msg tea.Msg) (tea.Model, tea.Cmd) {
         m.eventForm = f
     }
 
-	if m.eventForm.State == huh.StateCompleted || m.eventForm.State == huh.StateAborted {
+	if m.eventForm.State == huh.StateCompleted {
+		m.mode = LIST
+		return m, createEvent(eventFields{
+			summary: m.eventForm.GetString("summary"),
+			description: m.eventForm.GetString("description"),
+			location: m.eventForm.GetString("location"),
+			start: m.eventForm.GetString("start"),
+			end: m.eventForm.GetString("end"),
+		})
+	}
+
+	if m.eventForm.State == huh.StateAborted {
 		m.mode = LIST
 	}
 
@@ -143,7 +163,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.mode == LIST {
 		switch msg := msg.(type) {
 		case getEventsMsg:
-			m.updateModel(msg)
+			m.updateModelEvents(msg)
+			return m, m.list.NewStatusMessage("Updated event list")
+
+		case errMsg:
+			m.err = msg
+			return m, tea.Quit
 
 		case tea.KeyMsg:
 			switch msg.String() {
@@ -186,7 +211,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
-	if len(m.list.Items()) == 0 {
+	if m.err != nil {
+		return m.errView()
+	} else if len(m.list.Items()) == 0 {
 		return docStyle.Render("Obtaining user events...")
 	} else if m.selected.Event != nil {
 		return docStyle.Render(detailedInfoView(m))
@@ -197,7 +224,10 @@ func (m model) View() string {
 	}
 }
 
-func detailedInfoView(m model) string {
+func (m model) errView() string {
+	return m.err.Error()
+}
+
 	eventWrapper := m.selected
 
 	msg := eventWrapper.Summary + "\n" + eventWrapper.Date() + "\n"
@@ -212,7 +242,9 @@ func detailedInfoView(m model) string {
 }
 
 func main() {
-	p := tea.NewProgram(emptyModel(), tea.WithAltScreen())
+	// hack since bubbletea eats the input for token
+	authorize()
+	p := tea.NewProgram(emptyModel())
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Error: %v", err)
 		os.Exit(1)
