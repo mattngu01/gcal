@@ -8,7 +8,12 @@ Follow the [steps here](https://developers.google.com/calendar/api/quickstart/go
 
 
 ## TODO
-- [ ] new event form
+- [X] new event form
 - [ ] customize date output
 - [ ] prettier detailed view
 - [ ] improve token initialization flow
+- [ ] delete events
+- [ ] edit events
+- [ ] refresh calendar
+- [ ] unit tests
+- [ ] build pipeline
