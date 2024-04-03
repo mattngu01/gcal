@@ -216,7 +216,7 @@ func (m model) View() string {
 	} else if len(m.list.Items()) == 0 {
 		return docStyle.Render("Obtaining user events...")
 	} else if m.selected.Event != nil {
-		return docStyle.Render(detailedInfoView(m))
+		return docStyle.Render(m.detailedInfoView())
 	} else if m.mode == NEW_EVENT {
 		return docStyle.Render(m.eventForm.View())
 	} else {
@@ -228,6 +228,7 @@ func (m model) errView() string {
 	return m.err.Error()
 }
 
+func (m model) detailedInfoView() string {
 	eventWrapper := m.selected
 
 	msg := eventWrapper.Summary + "\n" + eventWrapper.Date() + "\n"
