@@ -12,3 +12,6 @@ Follow the [steps here](https://developers.google.com/calendar/api/quickstart/go
 - [ ] customize date output
 - [ ] prettier detailed view
 - [ ] improve token initialization flow
+- [ ] delete vents
+- [ ] edit events
+- [ ] refresh calendar
