@@ -4,14 +4,14 @@ on:
   pull_request:
   workflow_dispatch:
 
-env:
-  IS_PROD: ${{ github.events.pull_request.baseRef == 'main' }}
-
 jobs:
   build_binary:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      - name: Extract branch name
+        run: echo "branch=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}" >> $GITHUB_ENV
+        id: extract_branch
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
@@ -22,7 +22,7 @@ jobs:
         run: go build -v ./...
       - name: upload binary as artifact
         uses: actions/upload-artifact@v4
-        if: ${{ github.env.IS_PROD }}
+        if: ${{ github.env.branch == 'main' }}
         with:
           name: gcal-artifact
           path: gcal
@@ -30,7 +30,7 @@ jobs:
 
   tag:
     needs: build_binary
-    if: github.event.pull_request.merged == true
+    if: ${{ github.env.branch == 'main' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
