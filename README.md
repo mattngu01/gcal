@@ -15,5 +15,4 @@ Follow the [steps here](https://developers.google.com/calendar/api/quickstart/go
 - [ ] delete events
 - [ ] edit events
 - [ ] refresh calendar
-- [ ] unit tests
 - [ ] build pipeline
