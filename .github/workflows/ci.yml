@@ -4,9 +4,6 @@ on:
   pull_request:
   workflow_dispatch:
 
-env:
-  IS_PROD: ${{ github.events.pull_request.baseRef == 'main' }}
-
 jobs:
   build_binary:
     runs-on: ubuntu-latest
