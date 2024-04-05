@@ -151,11 +151,5 @@ func createEvent(e eventFields) tea.Cmd {
 }
 
 func convertStrToDateTime(s string) (time.Time, error) {
-	v, err := anytime.Parse(s, time.Now(), anytime.DefaultToFuture)
-
-	if err != nil {
-		return time.Time{}, err
-	}
-
-	return v, err
+	return anytime.Parse(s, time.Now(), anytime.DefaultToFuture)
 }
