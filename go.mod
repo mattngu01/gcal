@@ -1,4 +1,4 @@
-module calendar
+module gcal
 
 go 1.22.1
 
