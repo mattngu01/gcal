@@ -22,7 +22,7 @@ jobs:
         run: go build -v ./...
       - name: upload binary as artifact
         uses: actions/upload-artifact@v4
-        if: ${{ github.env.IS_PROD }}
+        if: ${{ github.ref_name == 'main' }}
         with:
           name: gcal-artifact
           path: gcal
@@ -30,7 +30,7 @@ jobs:
 
   tag:
     needs: build_binary
-    if: github.event.pull_request.merged == true
+    if: ${{ github.ref_name == 'main' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
