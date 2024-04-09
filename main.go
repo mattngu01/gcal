@@ -10,6 +10,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/ijt/go-anytime"
 	"github.com/muesli/reflow/wordwrap"
 	"google.golang.org/api/calendar/v3"
 )
@@ -40,6 +41,10 @@ type eventFields struct {
 }
 
 var DATE_HELP string = "Accepts standard YYYY-MM-DD & other formats, or try a phrase: 'two days from now at 2pm'"
+
+func convertStrToDateTime(s string) (time.Time, error) {
+	return anytime.Parse(s, time.Now(), anytime.DefaultToFuture)
+}
 
 func newEventForm() *huh.Form {
 	form := huh.NewForm(
@@ -212,13 +217,8 @@ func formUpdate(m model, msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.eventForm.State == huh.StateCompleted {
 		var cmd tea.Cmd
 		if m.mode == NEW_EVENT {
-			cmd = createEvent(eventFields{
-				summary: m.eventForm.GetString("summary"),
-				description: m.eventForm.GetString("description"),
-				location: m.eventForm.GetString("location"),
-				start: m.eventForm.GetString("start"),
-				end: m.eventForm.GetString("end"),
-			})
+			event, _ := formToEvent(m.eventForm)
+			cmd = createEvent(event)
 		}
 
 		if m.mode == EDIT_EVENT {

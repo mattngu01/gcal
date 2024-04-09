@@ -10,7 +10,6 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/ijt/go-anytime"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/calendar/v3"
@@ -111,36 +110,12 @@ func getEvents() tea.Msg {
 	return getEventsMsg(events)
 }
 
-func createEvent(e eventFields) tea.Cmd {
+func createEvent(e *calendar.Event) tea.Cmd {
 	return func() tea.Msg {
 		// definitely better to create only one client and then hold onto it, but eh
 		srv := authorize()
 
-		start, err := convertStrToDateTime(e.start)
-
-		if err != nil {
-			return errMsg(err)
-		}
-
-		end, err := convertStrToDateTime(e.end)
-
-		if err != nil {
-			return errMsg(err)
-		}
-
-		event := &calendar.Event{
-			Summary: e.summary,
-			Location: e.location,
-			Description: e.description,
-			Start: &calendar.EventDateTime{
-				DateTime: start.Format(time.RFC3339),
-			},
-			End: &calendar.EventDateTime{
-				DateTime: end.Format(time.RFC3339),
-			},
-		}
-
-		_, err = srv.Events.Insert("primary", event).Do()
+		_, err := srv.Events.Insert("primary", e).Do()
 
 		if err != nil {
 			return errMsg(err)
@@ -148,10 +123,6 @@ func createEvent(e eventFields) tea.Cmd {
 
 		return getEvents()
 	}
-}
-
-func convertStrToDateTime(s string) (time.Time, error) {
-	return anytime.Parse(s, time.Now(), anytime.DefaultToFuture)
 }
 
 func deleteEvent(e EventWrapper) tea.Cmd {
