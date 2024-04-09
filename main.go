@@ -255,9 +255,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 			switch msg.String() {
-			case "esc":
-				m.selected.Event = nil
-				return m, nil
 
 			case "ctrl+c", "q":
 				return m, tea.Quit
@@ -296,6 +293,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	} else if m.mode == NEW_EVENT || m.mode == EDIT_EVENT {
 		return formUpdate(m, msg)
+	} else if m.mode == SELECT_EVENT {
+		switch msg := msg.(type) {
+		case tea.KeyMsg:
+			switch msg.String() {
+			case "esc":
+				m.selected.Event = nil
+				m.mode = LIST
+			}
+		}
 	}
 
 	return m, nil
