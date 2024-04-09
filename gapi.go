@@ -167,3 +167,17 @@ func deleteEvent(e EventWrapper) tea.Cmd {
 		return getEvents()
 	}
 }
+
+func updateEvent(e calendar.Event) tea.Cmd {
+	return func() tea.Msg {
+		srv := authorize()
+
+		_, err := srv.Events.Update("primary", e.Id, &e).Do()
+
+		if err != nil {
+			return errMsg(err)
+		}
+
+		return getEvents()
+	}
+}

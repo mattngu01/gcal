@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
@@ -46,11 +47,31 @@ func newEventForm() *huh.Form {
 			huh.NewInput().Title("Summary / Title").Key("summary"),
 			huh.NewText().Title("Description").Key("description"),
 			huh.NewInput().Title("Location").Key("location"),
-			huh.NewInput().Title("Start date/time").Key("start").Placeholder(DATE_HELP).Validate(func(str string) error {
+			huh.NewInput().Title("Start date/time").Key("start").Description(DATE_HELP).Validate(func(str string) error {
 				_, err := convertStrToDateTime(str)
 				return err
 			}),
-			huh.NewInput().Title("End date/time").Key("end").Placeholder(DATE_HELP).Validate(func(str string) error {
+			huh.NewInput().Title("End date/time").Key("end").Description(DATE_HELP).Validate(func(str string) error {
+				_, err := convertStrToDateTime(str)
+				return err
+			}),
+		),
+	)
+
+	return form
+}
+
+func filledEventForm(e EventWrapper) *huh.Form {
+	form := huh.NewForm(
+		huh.NewGroup(
+			huh.NewInput().Title("Summary / Title").Key("summary").Value(&e.Summary),
+			huh.NewText().Title("Description").Key("description").Value(&e.Event.Description),
+			huh.NewInput().Title("Location").Key("location").Value(&e.Location),
+			huh.NewInput().Title("Start date/time").Key("start").Description(DATE_HELP).Value(&e.Start.DateTime).Validate(func(str string) error {
+				_, err := convertStrToDateTime(str)
+				return err
+			}),
+			huh.NewInput().Title("End date/time").Key("end").Description(DATE_HELP).Value(&e.Start.DateTime).Validate(func(str string) error {
 				_, err := convertStrToDateTime(str)
 				return err
 			}),
@@ -65,6 +86,7 @@ type mainKeyMap struct {
 	newEvent key.Binding
 	refreshEvents key.Binding
 	deleteItem key.Binding
+	editItem key.Binding
 }
 
 func newKeyMap() *mainKeyMap {
@@ -84,6 +106,10 @@ func newKeyMap() *mainKeyMap {
 		deleteItem: key.NewBinding(
 			key.WithKeys("D"),
 			key.WithHelp("D", "Delete event"),
+		),
+		editItem: key.NewBinding(
+			key.WithKeys("E", "e"),
+			key.WithHelp("E/e", "Edit event"),
 		),
 	}
 }
@@ -130,6 +156,7 @@ func emptyModel() model {
 const (
 	LIST = iota
 	NEW_EVENT
+	EDIT_EVENT
 )
 
 func (m *model) updateModelEvents(events *calendar.Events) {
@@ -144,6 +171,36 @@ func (m model) Init() tea.Cmd {
 	return getEvents
 }
 
+// assumes that form has required fields
+// for calendar event
+func formToEvent(f *huh.Form) (*calendar.Event, error) {
+	event, err := updateEventWithFormFields(f, &calendar.Event{})
+	return event, err
+}
+
+func updateEventWithFormFields(f *huh.Form, event *calendar.Event) (*calendar.Event, error) {
+	start, err := convertStrToDateTime(f.GetString("start"))
+
+	if err != nil {
+		return &calendar.Event{}, nil
+	}
+
+	end, err := convertStrToDateTime(f.GetString("end"))
+
+	if err != nil {
+		return &calendar.Event{}, nil
+	}
+
+	event.Summary = f.GetString("summary")
+	event.Location = f.GetString("location")
+	event.Description = f.GetString("description")
+	event.Start = &calendar.EventDateTime{DateTime: start.Format(time.RFC3339)}
+	event.End = &calendar.EventDateTime{DateTime: end.Format(time.RFC3339)}
+
+
+	return event, nil 
+}
+
 func formUpdate(m model, msg tea.Msg) (tea.Model, tea.Cmd) {
 	form, cmd := m.eventForm.Update(msg)
 
@@ -152,15 +209,25 @@ func formUpdate(m model, msg tea.Msg) (tea.Model, tea.Cmd) {
     }
 
 	if m.eventForm.State == huh.StateCompleted {
+		var cmd tea.Cmd
+		if m.mode == NEW_EVENT {
+			cmd = createEvent(eventFields{
+				summary: m.eventForm.GetString("summary"),
+				description: m.eventForm.GetString("description"),
+				location: m.eventForm.GetString("location"),
+				start: m.eventForm.GetString("start"),
+				end: m.eventForm.GetString("end"),
+			})
+		}
+
+		if m.mode == EDIT_EVENT {
+			event, _ := updateEventWithFormFields(m.eventForm, m.selected.Event)
+			cmd = updateEvent(*event)
+		}
+
 		m.mode = LIST
-		return m, createEvent(eventFields{
-			summary: m.eventForm.GetString("summary"),
-			description: m.eventForm.GetString("description"),
-			location: m.eventForm.GetString("location"),
-			start: m.eventForm.GetString("start"),
-			end: m.eventForm.GetString("end"),
-		})
-	}
+		return m, cmd
+		}
 
 	if m.eventForm.State == huh.StateAborted {
 		m.mode = LIST
@@ -206,6 +273,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, m.eventForm.Init()
 			case key.Matches(msg, m.keys.refreshEvents):
 				return m, getEvents
+			case key.Matches(msg, m.keys.editItem):
+				m.mode = EDIT_EVENT
+				event := m.list.SelectedItem().(EventWrapper)
+				m.selected = event
+				m.eventForm = filledEventForm(event)
+				return m, m.eventForm.Init()
 			}
 
 		case tea.WindowSizeMsg:
@@ -219,7 +292,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.list, cmd = m.list.Update(msg)
 
 		return m, cmd
-	} else if m.mode == NEW_EVENT {
+	} else if m.mode == NEW_EVENT || m.mode == EDIT_EVENT {
 		return formUpdate(m, msg)
 	}
 
@@ -233,7 +306,7 @@ func (m model) View() string {
 		return docStyle.Render("Obtaining user events...")
 	} else if m.selected.Event != nil {
 		return docStyle.Render(m.detailedInfoView())
-	} else if m.mode == NEW_EVENT {
+	} else if m.mode == NEW_EVENT || m.mode == EDIT_EVENT {
 		return docStyle.Render(m.eventForm.View())
 	} else {
 		return docStyle.Render(m.list.View())
@@ -314,6 +387,7 @@ func (m mainKeyMap) FullHelp() [][]key.Binding {
 			m.chooseItem,
 			m.refreshEvents,
 			m.deleteItem,
+			m.editItem,
 		},
 	}
 }
