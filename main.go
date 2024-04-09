@@ -181,6 +181,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 
 		case tea.KeyMsg:
+			// do not match any keys below if we're filtering
+			if m.list.FilterState() == list.Filtering {
+				break
+			}
+
 			switch msg.String() {
 			case "esc":
 				m.selected.Event = nil
