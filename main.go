@@ -157,6 +157,7 @@ const (
 	LIST = iota
 	NEW_EVENT
 	EDIT_EVENT
+	SELECT_EVENT
 )
 
 func (m *model) updateModelEvents(events *calendar.Events) {
@@ -264,6 +265,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			switch {
 			case key.Matches(msg, m.keys.chooseItem):
+				m.mode = SELECT_EVENT
 				event := m.list.SelectedItem().(EventWrapper)
 				m.selected = event
 				return m, m.list.NewStatusMessage("You chose " + event.Summary)
@@ -304,7 +306,7 @@ func (m model) View() string {
 		return m.errView()
 	} else if len(m.list.Items()) == 0 {
 		return docStyle.Render("Obtaining user events...")
-	} else if m.selected.Event != nil {
+	} else if m.mode == SELECT_EVENT && m.selected.Event != nil {
 		return docStyle.Render(m.detailedInfoView())
 	} else if m.mode == NEW_EVENT || m.mode == EDIT_EVENT {
 		return docStyle.Render(m.eventForm.View())
