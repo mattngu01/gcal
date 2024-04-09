@@ -1,6 +1,6 @@
 # Google Calendar TUI
 
-Created using [Google's quickstart](https://developers.google.com/calendar/api/quickstart/go).
+Created using [Google's quickstart](https://developers.google.com/calendar/api/quickstart/go). Built as a personal project to learn Go.
 
 ## Getting using user credentials
 
@@ -20,7 +20,7 @@ Pipeline uses [GH Release](https://github.com/marketplace/actions/gh-release) an
 - [ ] customize date output
 - [ ] prettier detailed view
 - [ ] improve token initialization flow
-- [ ] delete events
-- [ ] edit events
+- [X] delete events
+- [X] edit events
 - [X] refresh calendar
 - [X] build pipeline
