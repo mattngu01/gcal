@@ -153,3 +153,17 @@ func createEvent(e eventFields) tea.Cmd {
 func convertStrToDateTime(s string) (time.Time, error) {
 	return anytime.Parse(s, time.Now(), anytime.DefaultToFuture)
 }
+
+func deleteEvent(e EventWrapper) tea.Cmd {
+	return func() tea.Msg {
+		srv := authorize()
+
+		err := srv.Events.Delete("primary", e.Id).Do()
+
+		if err != nil {
+			return errMsg(err)
+		}
+
+		return getEvents()
+	}
+}

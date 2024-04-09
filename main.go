@@ -64,6 +64,7 @@ type mainKeyMap struct {
 	chooseItem key.Binding
 	newEvent key.Binding
 	refreshEvents key.Binding
+	deleteItem key.Binding
 }
 
 func newKeyMap() *mainKeyMap {
@@ -79,6 +80,10 @@ func newKeyMap() *mainKeyMap {
 		refreshEvents: key.NewBinding(
 			key.WithKeys("R", "r"),
 			key.WithHelp("R/r", "Refresh events list"),
+		),
+		deleteItem: key.NewBinding(
+			key.WithKeys("D"),
+			key.WithHelp("D", "Delete event"),
 		),
 	}
 }
@@ -261,6 +266,26 @@ func main() {
 // Combines the main app key bindings to show help on list view
 func newItemDelegate(keys *mainKeyMap) list.DefaultDelegate {
 	d := list.NewDefaultDelegate()
+
+	d.UpdateFunc = func(msg tea.Msg, m *list.Model) tea.Cmd {
+		var event EventWrapper
+		if e, ok := m.SelectedItem().(EventWrapper); ok {
+			event = e
+		} else {
+			return nil
+		}
+
+		switch msg := msg.(type) {
+		case tea.KeyMsg:
+			switch {
+			case key.Matches(msg, keys.deleteItem):
+				return tea.Batch(m.NewStatusMessage("Deleted event " + event.Summary), deleteEvent(event))
+			}
+			
+		}
+
+		return nil
+	}
 	
 	d.ShortHelpFunc = keys.ShortHelp
 
@@ -283,6 +308,7 @@ func (m mainKeyMap) FullHelp() [][]key.Binding {
 		{
 			m.chooseItem,
 			m.refreshEvents,
+			m.deleteItem,
 		},
 	}
 }
