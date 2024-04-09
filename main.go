@@ -63,6 +63,7 @@ func newEventForm() *huh.Form {
 type mainKeyMap struct {
 	chooseItem key.Binding
 	newEvent key.Binding
+	refreshEvents key.Binding
 }
 
 func newKeyMap() *mainKeyMap {
@@ -74,6 +75,10 @@ func newKeyMap() *mainKeyMap {
 		newEvent: key.NewBinding(
 			key.WithKeys("N", "n"),
 			key.WithHelp("N/n", "Create new event"),
+		),
+		refreshEvents: key.NewBinding(
+			key.WithKeys("R", "r"),
+			key.WithHelp("R/r", "Refresh events list"),
 		),
 	}
 }
@@ -189,6 +194,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.mode = NEW_EVENT
 				m.eventForm = newEventForm()
 				return m, m.eventForm.Init()
+			case key.Matches(msg, m.keys.refreshEvents):
+				return m, getEvents
 			}
 
 		case tea.WindowSizeMsg:
@@ -203,7 +210,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		return m, cmd
 	} else if m.mode == NEW_EVENT {
-		// upon finishing event need to create command to create new event in API, change mode back to LIST, maybe update..?
 		return formUpdate(m, msg)
 	}
 
@@ -256,15 +262,9 @@ func main() {
 func newItemDelegate(keys *mainKeyMap) list.DefaultDelegate {
 	d := list.NewDefaultDelegate()
 	
-	help := []key.Binding{keys.chooseItem, keys.newEvent}
-	
-	d.ShortHelpFunc = func() []key.Binding {
-		return help
-	}
+	d.ShortHelpFunc = keys.ShortHelp
 
-	d.FullHelpFunc = func() [][]key.Binding {
-		return [][]key.Binding{help}
-	}
+	d.FullHelpFunc = keys.FullHelp
 
 	return d
 }
@@ -282,6 +282,7 @@ func (m mainKeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{
 			m.chooseItem,
+			m.refreshEvents,
 		},
 	}
 }
