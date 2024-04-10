@@ -76,9 +76,9 @@ func filledEventForm(e EventWrapper) *huh.Form {
 				_, err := convertStrToDateTime(str)
 				return err
 			}),
-			huh.NewInput().Title("End date/time").Key("end").Description(DATE_HELP).Value(&e.Start.DateTime).Validate(func(str string) error {
 				_, err := convertStrToDateTime(str)
 				return err
+			huh.NewInput().Title("End date/time").Key("end").Description(DATE_HELP).Value(&e.End.DateTime).Validate(func(str string) error {
 			}),
 		),
 	)
