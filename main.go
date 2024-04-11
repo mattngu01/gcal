@@ -24,20 +24,12 @@ var docStyle = lipgloss.NewStyle().Margin(1, 2)
 type model struct {
 	list list.Model
 	// not sure if better to have it as list.Item instead
-	selected EventWrapper
-	keys     *mainKeyMap
+	selected     EventWrapper
+	keys         *mainKeyMap
 	contentWidth int
-	eventForm *huh.Form
-	mode int
-	err error
-}
-
-type eventFields struct {
-	summary string
-	description string
-	location string
-	start string // to be converted to time.Time per go-anytime
-	end string
+	eventForm    *huh.Form
+	mode         int
+	err          error
 }
 
 var DATE_HELP string = "Accepts standard YYYY-MM-DD & other formats, or try a phrase: 'two days from now at 2pm'"
@@ -95,11 +87,11 @@ func filledEventForm(e EventWrapper) *huh.Form {
 }
 
 type mainKeyMap struct {
-	chooseItem key.Binding
-	newEvent key.Binding
+	chooseItem    key.Binding
+	newEvent      key.Binding
 	refreshEvents key.Binding
-	deleteItem key.Binding
-	editItem key.Binding
+	deleteItem    key.Binding
+	editItem      key.Binding
 }
 
 func newKeyMap() *mainKeyMap {
@@ -216,16 +208,15 @@ func updateEventWithFormFields(f *huh.Form, event *calendar.Event) (*calendar.Ev
 	event.Start = &calendar.EventDateTime{DateTime: start.Format(time.RFC3339)}
 	event.End = &calendar.EventDateTime{DateTime: end.Format(time.RFC3339)}
 
-
-	return event, nil 
+	return event, nil
 }
 
 func formUpdate(m model, msg tea.Msg) (tea.Model, tea.Cmd) {
 	form, cmd := m.eventForm.Update(msg)
 
 	if f, ok := form.(*huh.Form); ok {
-        m.eventForm = f
-    }
+		m.eventForm = f
+	}
 
 	if m.eventForm.State == huh.StateCompleted {
 		var cmd tea.Cmd
@@ -241,13 +232,13 @@ func formUpdate(m model, msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		m.mode = LIST
 		return m, cmd
-		}
+	}
 
 	if m.eventForm.State == huh.StateAborted {
 		m.mode = LIST
 	}
 
-    return m, cmd
+	return m, cmd
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -296,7 +287,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.WindowSizeMsg:
 			xMargin, yMargin := docStyle.GetFrameSize()
 
-			m.contentWidth = msg.Width-xMargin
+			m.contentWidth = msg.Width - xMargin
 			m.list.SetSize(msg.Width-xMargin, msg.Height-yMargin)
 		}
 
@@ -378,14 +369,14 @@ func newItemDelegate(keys *mainKeyMap) list.DefaultDelegate {
 		case tea.KeyMsg:
 			switch {
 			case key.Matches(msg, keys.deleteItem):
-				return tea.Batch(m.NewStatusMessage("Deleted event " + event.Summary), deleteEvent(event))
+				return tea.Batch(m.NewStatusMessage("Deleted event "+event.Summary), deleteEvent(event))
 			}
-			
+
 		}
 
 		return nil
 	}
-	
+
 	d.ShortHelpFunc = keys.ShortHelp
 
 	d.FullHelpFunc = keys.FullHelp
