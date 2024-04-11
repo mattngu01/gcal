@@ -57,8 +57,12 @@ func newEventForm() *huh.Form {
 				return err
 			}),
 			huh.NewInput().Title("End date/time").Key("end").Description(DATE_HELP).Validate(func(str string) error {
-				_, err := convertStrToDateTime(str)
-				return err
+				if str == "" {
+					return nil
+				} else {
+					_, err := convertStrToDateTime(str)
+					return err
+				}
 			}),
 		),
 	)
@@ -76,9 +80,13 @@ func filledEventForm(e EventWrapper) *huh.Form {
 				_, err := convertStrToDateTime(str)
 				return err
 			}),
-				_, err := convertStrToDateTime(str)
-				return err
 			huh.NewInput().Title("End date/time").Key("end").Description(DATE_HELP).Value(&e.End.DateTime).Validate(func(str string) error {
+				if str == "" {
+					return nil
+				} else {
+					_, err := convertStrToDateTime(str)
+					return err
+				}
 			}),
 		),
 	)
@@ -191,10 +199,15 @@ func updateEventWithFormFields(f *huh.Form, event *calendar.Event) (*calendar.Ev
 		return &calendar.Event{}, nil
 	}
 
-	end, err := convertStrToDateTime(f.GetString("end"))
+	var end time.Time
+	if f.GetString("end") != "" {
+		end, err = convertStrToDateTime(f.GetString("end"))
 
-	if err != nil {
-		return &calendar.Event{}, nil
+		if err != nil {
+			return &calendar.Event{}, nil
+		}
+	} else {
+		end = start.Add(time.Hour)
 	}
 
 	event.Summary = f.GetString("summary")

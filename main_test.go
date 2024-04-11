@@ -5,29 +5,26 @@ import (
 
 	"errors"
 
+	"github.com/google/go-cmp/cmp"
 	"google.golang.org/api/calendar/v3"
 )
 
 func generateSampleModel() model {
 	m := emptyModel()
-	event := &calendar.Event{
+	event := sampleEvent()
+	m.list.InsertItem(0, EventWrapper{&event})
+
+	return m
+}
+
+func sampleEvent() calendar.Event {
+	return calendar.Event{
 		Summary: "Sample Event", 
 		Description: "Sample", 
 		Start: &calendar.EventDateTime{DateTime: "2024-04-03T00:00:00-07:00"}, 
 		End: &calendar.EventDateTime{DateTime: "2024-04-04T00:00:00-07:00"},
 	}
-	m.list.InsertItem(0, EventWrapper{event})
-
-	return m
 }
-
-/*
-let's test the following:
-- new event pipeline
-- selecting a event should show its details
-- correctly showing errorView
-- getting events
-*/
 
 func TestShowEventDetails(t *testing.T) {
 	m := generateSampleModel()
@@ -57,12 +54,7 @@ func TestShowError(t *testing.T) {
 
 func TestUpdateGetEvents(t *testing.T) {
 	m := generateSampleModel()
-	sampleEvent := calendar.Event{
-		Summary: "Different Sample Event", 
-		Description: "Sample", 
-		Start: &calendar.EventDateTime{DateTime: "2024-04-03T00:00:00-07:00"}, 
-		End: &calendar.EventDateTime{DateTime: "2024-04-04T00:00:00-07:00"},
-	}
+	sampleEvent := sampleEvent()
 	eventsList := &calendar.Events{
 		Items: []*calendar.Event{&sampleEvent},
 	}
@@ -72,5 +64,79 @@ func TestUpdateGetEvents(t *testing.T) {
 
 	if newModel.(model).list.Items()[0].(EventWrapper) != wrapper {
 		t.Errorf("%v != %v", newModel.(model).list.Items()[0].(EventWrapper), wrapper)	
+	}
+}
+
+func TestFilledForm(t *testing.T) {
+	event := sampleEvent()
+	f := filledEventForm(EventWrapper{&event})
+
+	// huh forms do not set the field value until processing nextFieldMsg 
+	for i := 0; i < 50; i++ {
+		f.Update(f.NextField())
+	}
+
+	if f.GetString("summary") != event.Summary {
+		t.Errorf("Summary: %v != %v", f.Get("summary"), event.Summary)
+	}
+
+	if f.GetString("description") != event.Description {
+		t.Errorf("Description: %v != %v", f.Get("description"), event.Summary)
+	}
+
+	if f.GetString("start") != event.Start.DateTime {
+		t.Errorf("Start: %v != %v", f.Get("start"), event.Start.DateTime)
+	}
+
+	if f.GetString("end") != event.End.DateTime {
+		t.Errorf("End: %v != %v", f.Get("end"), event.End.DateTime)
+	}
+
+	if f.GetString("location") != event.Location {
+		t.Errorf("Location: %v != %v", f.GetString("location"), event.Location)
+	}
+}
+
+
+func TestConvertFormToEvent(t *testing.T) {
+	event := sampleEvent()
+	f := filledEventForm(EventWrapper{&event})
+
+	// huh forms do not set the field value until processing nextFieldMsg
+	for i := 0; i < 50; i++ {
+		f.Update(f.NextField())
+	}
+
+	convertedEvent, err := formToEvent(f)
+
+	if err != nil {
+		t.Errorf("error %v occurred converting form to event", err)
+	}
+
+	if !cmp.Equal(*convertedEvent, event) {
+		t.Errorf("Converted event is not equal, converted\n %+v \n!=\n %+v", *convertedEvent, event)
+	}
+}
+
+func TestDefaultEndTimeOneHourAfterStart(t *testing.T) {
+	event := sampleEvent()
+	event.End.DateTime = ""
+
+	f := filledEventForm(EventWrapper{&event})
+
+	// huh forms do not set the field value until processing nextFieldMsg
+	for i := 0; i < 50; i++ {
+		f.Update(f.NextField())
+	}
+
+	convertedEvent, err := formToEvent(f)
+
+	if err != nil {
+		t.Errorf("error %v occurred converting form to event", err)
+	}
+
+	expectedEnd := "2024-04-03T01:00:00-07:00"
+	if convertedEvent.End.DateTime != expectedEnd {
+		t.Errorf("Expected %v != Actual %v", expectedEnd, convertedEvent.End.DateTime)
 	}
 }

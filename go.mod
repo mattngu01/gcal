@@ -7,6 +7,8 @@ require (
 	github.com/charmbracelet/bubbletea v0.25.0
 	github.com/charmbracelet/huh v0.3.0
 	github.com/charmbracelet/lipgloss v0.9.1
+	github.com/google/go-cmp v0.6.0
+	github.com/ijt/go-anytime v1.9.2
 	github.com/muesli/reflow v0.3.0
 	golang.org/x/oauth2 v0.18.0
 	google.golang.org/api v0.170.0
@@ -28,7 +30,6 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.2 // indirect
 	github.com/googleapis/gax-go/v2 v2.12.2 // indirect
-	github.com/ijt/go-anytime v1.9.2 // indirect
 	github.com/ijt/goparsify v0.0.0-20221203142333-3a5276334b8d // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
