@@ -11,18 +11,27 @@ import (
 
 func generateSampleModel() model {
 	m := emptyModel()
-	event := sampleEvent()
+	event := sampleDateTimeEvent()
 	m.list.InsertItem(0, EventWrapper{&event})
 
 	return m
 }
 
-func sampleEvent() calendar.Event {
+func sampleDateTimeEvent() calendar.Event {
 	return calendar.Event{
-		Summary: "Sample Event", 
-		Description: "Sample", 
-		Start: &calendar.EventDateTime{DateTime: "2024-04-03T00:00:00-07:00"}, 
+		Summary: "Sample Event",
+		Description: "Sample",
+		Start: &calendar.EventDateTime{DateTime: "2024-04-03T00:00:00-07:00"},
 		End: &calendar.EventDateTime{DateTime: "2024-04-04T00:00:00-07:00"},
+	}
+}
+
+func sampleAllDayEvent() calendar.Event {
+	return calendar.Event{
+		Summary: "Sample Event",
+		Description: "Sample",
+		Start: &calendar.EventDateTime{Date: "2024-04-04"},
+		End: &calendar.EventDateTime{Date: "2024-04-05"},
 	}
 }
 
@@ -54,7 +63,7 @@ func TestShowError(t *testing.T) {
 
 func TestUpdateGetEvents(t *testing.T) {
 	m := generateSampleModel()
-	sampleEvent := sampleEvent()
+	sampleEvent := sampleDateTimeEvent()
 	eventsList := &calendar.Events{
 		Items: []*calendar.Event{&sampleEvent},
 	}
@@ -68,7 +77,7 @@ func TestUpdateGetEvents(t *testing.T) {
 }
 
 func TestFilledForm(t *testing.T) {
-	event := sampleEvent()
+	event := sampleDateTimeEvent()
 	f := filledEventForm(EventWrapper{&event})
 
 	// huh forms do not set the field value until processing nextFieldMsg 
@@ -99,7 +108,7 @@ func TestFilledForm(t *testing.T) {
 
 
 func TestConvertFormToEvent(t *testing.T) {
-	event := sampleEvent()
+	event := sampleDateTimeEvent()
 	f := filledEventForm(EventWrapper{&event})
 
 	// huh forms do not set the field value until processing nextFieldMsg
@@ -119,7 +128,7 @@ func TestConvertFormToEvent(t *testing.T) {
 }
 
 func TestDefaultEndTimeOneHourAfterStart(t *testing.T) {
-	event := sampleEvent()
+	event := sampleDateTimeEvent()
 	event.End.DateTime = ""
 
 	f := filledEventForm(EventWrapper{&event})
@@ -138,5 +147,33 @@ func TestDefaultEndTimeOneHourAfterStart(t *testing.T) {
 	expectedEnd := "2024-04-03T01:00:00-07:00"
 	if convertedEvent.End.DateTime != expectedEnd {
 		t.Errorf("Expected %v != Actual %v", expectedEnd, convertedEvent.End.DateTime)
+	}
+}
+
+func TestCreateAllDayEvent(t *testing.T) {
+	event := sampleAllDayEvent()
+	f := filledEventForm(EventWrapper{&event})
+
+	// huh forms do not set the field value until processing nextFieldMsg
+	for i := 0; i < 50; i++ {
+		f.Update(f.NextField())
+	}
+
+	convertedEvent, err := formToEvent(f)
+
+	if err != nil {
+		t.Errorf("error %v occurred converting form to event", err)
+	}
+
+	if convertedEvent.End.Date != event.End.Date {
+		t.Errorf("Expected %v != Actual %v", event.End.Date, convertedEvent.End.Date)
+	}
+
+	if convertedEvent.Start.Date != event.Start.Date {
+		t.Errorf("Expected %v != Actual %v", event.Start.Date, convertedEvent.End.Date)
+	}
+
+	if !f.Get("allDay").(bool) {
+		t.Errorf("Expected key 'allDay' to be true %v != %v", f.Get("allDay"), true)
 	}
 }

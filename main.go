@@ -44,6 +44,7 @@ func newEventForm() *huh.Form {
 			huh.NewInput().Title("Summary / Title").Key("summary"),
 			huh.NewText().Title("Description").Key("description"),
 			huh.NewInput().Title("Location").Key("location"),
+			huh.NewConfirm().Title("All day").Key("allDay"),
 			huh.NewInput().Title("Start date/time").Key("start").Description(DATE_HELP).Validate(func(str string) error {
 				_, err := convertStrToDateTime(str)
 				return err
@@ -63,16 +64,28 @@ func newEventForm() *huh.Form {
 }
 
 func filledEventForm(e EventWrapper) *huh.Form {
+	allDay := e.Start.DateTime == ""
+	var end, start string
+
+	if allDay == true {
+		start = e.Start.Date
+		end = e.End.Date
+	} else {
+		start = e.Start.DateTime
+		end = e.End.DateTime
+	}
+
 	form := huh.NewForm(
 		huh.NewGroup(
 			huh.NewInput().Title("Summary / Title").Key("summary").Value(&e.Summary),
 			huh.NewText().Title("Description").Key("description").Value(&e.Event.Description),
 			huh.NewInput().Title("Location").Key("location").Value(&e.Location),
-			huh.NewInput().Title("Start date/time").Key("start").Description(DATE_HELP).Value(&e.Start.DateTime).Validate(func(str string) error {
+			huh.NewConfirm().Title("All day").Key("allDay").Value(&allDay),
+			huh.NewInput().Title("Start date/time").Key("start").Description(DATE_HELP).Value(&start).Validate(func(str string) error {
 				_, err := convertStrToDateTime(str)
 				return err
 			}),
-			huh.NewInput().Title("End date/time").Key("end").Description(DATE_HELP).Value(&e.End.DateTime).Validate(func(str string) error {
+			huh.NewInput().Title("End date/time").Key("end").Description(DATE_HELP).Value(&end).Validate(func(str string) error {
 				if str == "" {
 					return nil
 				} else {
@@ -205,8 +218,14 @@ func updateEventWithFormFields(f *huh.Form, event *calendar.Event) (*calendar.Ev
 	event.Summary = f.GetString("summary")
 	event.Location = f.GetString("location")
 	event.Description = f.GetString("description")
-	event.Start = &calendar.EventDateTime{DateTime: start.Format(time.RFC3339)}
-	event.End = &calendar.EventDateTime{DateTime: end.Format(time.RFC3339)}
+
+	if f.Get("allDay") == true {
+		event.Start = &calendar.EventDateTime{Date: start.Format("2006-01-02")}
+		event.End = &calendar.EventDateTime{Date: end.Format("2006-01-02")}
+	} else {
+		event.Start = &calendar.EventDateTime{DateTime: start.Format(time.RFC3339)}
+		event.End = &calendar.EventDateTime{DateTime: end.Format(time.RFC3339)}
+	}
 
 	return event, nil
 }
