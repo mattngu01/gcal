@@ -250,7 +250,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case errMsg:
 			m.err = msg
-			return m, tea.Quit
+			return m, nil
 
 		case tea.KeyMsg:
 			// do not match any keys below if we're filtering
